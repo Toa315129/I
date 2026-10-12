@@ -1,207 +1,1036 @@
 <!DOCTYPE html>
 <html lang="th">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>สร้างตู้ปลาเสมือนจริงด้วยตัวเอง</title>
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-storage-compat.js"></script>
-    
-    <style>
-        body { margin: 0; padding: 0; font-family: sans-serif; overflow: hidden; background: #000; }
-        #view-selection { display: flex; justify-content: center; align-items: center; height: 100vh; gap: 20px; background: #222; }
-        button { padding: 20px 40px; font-size: 1.5rem; cursor: pointer; border-radius: 10px; border: none; background: #00bcd4; color: white; font-weight: bold; }
-        
-        /* หน้าจออควาเรียม (TV) */
-        #aquarium-container { display: none; width: 100vw; height: 100vh; position: relative; }
-        #aquariumCanvas { width: 100%; height: 100%; display: block; }
-        
-        /* หน้าจอสแกน (Mobile) */
-        #scanner-container { display: none; padding: 20px; text-align: center; color: white; }
-        #webcam { width: 100%; max-width: 500px; border: 4px solid #fff; border-radius: 10px; transform: scaleX(-1); }
-        #canvas-process { display: none; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#2f0509">
+<meta name="color-scheme" content="dark">
+<title>กินเจ ตะกั่วป่า - ตู้ถ่ายรูป 3 ท่า</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='10' fill='%23c4161c'/%3E%3Ctext x='32' y='47' font-size='40' text-anchor='middle' fill='%23ffd21f'%3E齋%3C/text%3E%3C/svg%3E">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+<style>
+@font-face{
+  font-family:'JS Chanok';
+  src:url('https://cdn.jsdelivr.net/gh/Toa315129/Saphabooth@main/JS-Chanok-Normal.ttf') format('truetype');
+  font-weight:normal;font-style:normal;font-display:swap;
+}
+
+:root{
+  --lacquer-950:#1e0306;
+  --lacquer-900:#2f0509;
+  --lacquer-800:#4d0a10;
+  --lacquer-700:#7a0f17;
+  --red:#c4161c;
+  --flag:#ffd21f;
+  --cream:#fff4d6;
+  --line:rgba(255,210,31,.28);
+  --font-ui:'Prompt',system-ui,-apple-system,'Noto Sans Thai',sans-serif;
+  --font-title:'JS Chanok','Prompt',sans-serif;
+}
+
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+[hidden]{display:none!important}
+html,body{height:100%}
+body{
+  margin:0;overflow:hidden;
+  font-family:var(--font-ui);color:var(--cream);
+  background:radial-gradient(1100px 700px at 50% -8%,#7a0f17 0%,#3a070c 52%,#1e0306 100%) fixed;
+  touch-action:manipulation;-webkit-user-select:none;user-select:none;
+}
+:where(button,input,a):focus-visible{outline:3px solid #fff;outline-offset:3px}
+
+#app{
+  height:100dvh;max-width:1280px;margin:0 auto;display:flex;flex-direction:column;
+  padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+
+/* ---------- Icons ---------- */
+.ico{width:1.25em;height:1.25em;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+
+/* ---------- Top bar ---------- */
+.topbar{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:12px 20px;border-bottom:1px solid var(--line);background:rgba(20,2,5,.45);
+}
+.brand{display:flex;align-items:center;gap:12px;min-width:0}
+.seal{
+  width:40px;height:40px;display:grid;place-items:center;flex:none;
+  background:var(--red);color:var(--flag);border:2px solid var(--flag);border-radius:6px;
+  font:700 22px/1 'Noto Serif CJK SC','Songti SC','STSong','SimSun',serif;transform:rotate(-4deg);
+}
+.brand h1{margin:0;font-size:18px;font-weight:700;line-height:1.2;color:var(--flag)}
+.brand p{margin:0;font-size:12px;color:rgba(255,244,214,.65)}
+.net{
+  display:flex;align-items:center;gap:8px;flex:none;
+  padding:5px 12px;border-radius:999px;font-size:12px;font-weight:600;
+  color:#7ee2a8;border:1px solid rgba(126,226,168,.35);background:rgba(126,226,168,.08);
+}
+.net .dot{width:8px;height:8px;border-radius:50%;background:currentColor}
+.net.offline{color:#ffb454;border-color:rgba(255,180,84,.4);background:rgba(255,180,84,.1)}
+
+/* ---------- Screens ---------- */
+main{flex:1;min-height:0;position:relative}
+.screen{position:absolute;inset:0;display:flex;overflow-y:auto;overflow-x:hidden}
+
+/* ---------- Buttons ---------- */
+.btn{
+  font:inherit;border:0;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:10px;
+  transition:transform .08s,box-shadow .08s,background .15s,opacity .15s;
+}
+.btn:disabled{opacity:.5;cursor:default}
+.btn-primary{
+  min-height:60px;padding:0 38px;border-radius:999px;
+  background:var(--flag);color:var(--lacquer-800);font-weight:800;font-size:20px;
+  box-shadow:0 6px 0 #a87500,0 16px 28px rgba(0,0,0,.4);
+}
+.btn-primary:hover:not(:disabled){background:#ffdf55}
+.btn-primary:active:not(:disabled){transform:translateY(5px);box-shadow:0 1px 0 #a87500,0 6px 14px rgba(0,0,0,.4)}
+.btn-action{min-height:54px;padding:0 20px;border-radius:14px;font-weight:700;font-size:17px;width:100%}
+.btn-red{background:var(--red);color:#fff;border:2px solid var(--flag)}
+.btn-red:hover:not(:disabled){background:#d9232a}
+.btn-outline{background:transparent;color:var(--flag);border:2px solid var(--line)}
+.btn-outline:hover:not(:disabled){background:rgba(255,210,31,.1)}
+.btn-ghost{background:rgba(255,255,255,.08);color:var(--cream);font-weight:600}
+.btn-ghost:hover:not(:disabled){background:rgba(255,255,255,.15)}
+.btn-action:active:not(:disabled){transform:scale(.97)}
+
+.icon-btn{
+  width:48px;height:48px;border-radius:50%;display:grid;place-items:center;cursor:pointer;
+  border:1px solid rgba(255,255,255,.3);background:rgba(30,3,6,.6);color:#fff;
+  -webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);transition:background .15s,color .15s,transform .08s;
+}
+.icon-btn:hover:not(:disabled){background:var(--flag);color:var(--lacquer-800)}
+.icon-btn:active:not(:disabled){transform:scale(.9)}
+.icon-btn:disabled{opacity:.4;cursor:default}
+
+/* ---------- Home ---------- */
+.home{
+  flex-direction:column;align-items:center;justify-content:center;
+  gap:32px;padding:28px 20px 36px;text-align:center;
+}
+.flag-wrap{
+  --fw:min(52vw,220px);
+  position:relative;width:var(--fw);flex:none;transform-origin:50% 0;
+  filter:drop-shadow(0 18px 22px rgba(0,0,0,.5));
+  animation:sway 6s ease-in-out infinite;
+}
+.flag-wrap::before{
+  content:"";display:block;height:calc(var(--fw)*.055);margin:0 calc(var(--fw)*-.06);
+  border-radius:99px;background:#8a5a14;box-shadow:inset 0 -3px 0 rgba(0,0,0,.28);
+}
+.flag{
+  aspect-ratio:3/4;background:var(--flag);color:var(--red);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:calc(var(--fw)*.02);
+  padding-bottom:calc(var(--fw)*.1);
+  clip-path:polygon(0 0,100% 0,100% 100%,50% 91%,0 100%);
+}
+.flag-seal{
+  font:700 calc(var(--fw)*.12)/1.25 'Noto Serif CJK SC','Songti SC','STSong','SimSun',serif;
+  border:2px solid currentColor;border-radius:4px;padding:0 calc(var(--fw)*.03);
+}
+.flag-title{font-family:var(--font-title);font-size:calc(var(--fw)*.4);line-height:1.1}
+.flag-sub{font-size:calc(var(--fw)*.075);font-weight:700}
+
+.home-copy{max-width:520px;display:flex;flex-direction:column;align-items:center;gap:14px}
+.home-copy .event{margin:0;color:var(--flag);font-weight:600;font-size:15px}
+.home-copy h2{margin:0;font-size:clamp(26px,6vw,40px);line-height:1.3;font-weight:800;color:#fff}
+.home-copy .lead{margin:0;color:rgba(255,244,214,.78);font-size:16px;line-height:1.7;max-width:34em}
+
+.themes{border:0;margin:6px 0 8px;padding:0;min-width:0}
+.themes legend{padding:0;margin:0 0 12px;font-size:14px;font-weight:600;color:var(--cream);text-align:inherit;width:100%}
+.theme-list{display:flex;gap:18px;justify-content:inherit}
+.theme{position:relative;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:8px;font-size:13px;font-weight:600}
+.theme input{position:absolute;opacity:0;pointer-events:none}
+.swatch{
+  width:54px;height:128px;padding:6px 5px;border-radius:6px;background:var(--bg);
+  display:flex;flex-direction:column;gap:5px;
+  outline:2px solid rgba(255,255,255,.22);outline-offset:0;
+  box-shadow:0 8px 18px rgba(0,0,0,.35);transition:transform .15s;
+}
+.swatch::before{content:"";height:9px;border-radius:2px;background:var(--ink)}
+.swatch i{flex:1;background:var(--photo);border:2px solid var(--ink)}
+.sw-classic{--bg:#fff;--ink:#d32f2f;--photo:#fbe3e3}
+.sw-flag{--bg:#fadb14;--ink:#c4161c;--photo:#fff}
+.sw-lacquer{--bg:#a50f18;--ink:#ffd21f;--photo:#fff4d6}
+.theme input:checked + .swatch{outline:3px solid var(--flag);transform:translateY(-4px)}
+.theme input:focus-visible + .swatch{outline:3px solid #fff}
+.theme input:checked ~ .tname{color:var(--flag)}
+
+@keyframes sway{0%,100%{transform:rotate(-1.6deg)}50%{transform:rotate(1.6deg)}}
+
+@media (max-height:700px){
+  .flag-wrap{--fw:min(30vh,170px)}
+  .home{gap:20px;padding-top:16px}
+}
+@media (min-width:900px) and (min-height:560px){
+  .home{flex-direction:row;gap:80px;text-align:left}
+  .flag-wrap{--fw:300px}
+  .home-copy{align-items:flex-start}
+  .theme-list{justify-content:flex-start}
+}
+
+/* ---------- Camera ---------- */
+.cam{align-items:center;justify-content:center;padding:12px 16px 16px}
+.cam-stage{width:100%;display:flex;flex-direction:column;align-items:center;gap:16px}
+.viewfinder{
+  position:relative;width:100%;
+  max-width:min(100%,max(260px,calc((100dvh - 250px)*1.1304)));
+  aspect-ratio:1040/920;background:#000;border-radius:20px;overflow:hidden;
+  border:3px solid var(--flag);box-shadow:0 24px 50px rgba(0,0,0,.55);
+}
+.viewfinder video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.viewfinder video.mirror{transform:scaleX(-1)}
+.corners i{position:absolute;width:28px;height:28px;border:4px solid rgba(255,255,255,.85);pointer-events:none}
+.corners i:nth-child(1){top:14px;left:14px;border-right:0;border-bottom:0;border-radius:10px 0 0 0}
+.corners i:nth-child(2){top:14px;right:14px;border-left:0;border-bottom:0;border-radius:0 10px 0 0}
+.corners i:nth-child(3){bottom:14px;left:14px;border-right:0;border-top:0;border-radius:0 0 0 10px}
+.corners i:nth-child(4){bottom:14px;right:14px;border-left:0;border-top:0;border-radius:0 0 10px 0}
+.back{position:absolute;top:14px;left:14px;z-index:5}
+.status-pill{
+  position:absolute;left:50%;bottom:18px;transform:translateX(-50%);z-index:5;margin:0;
+  max-width:88%;padding:8px 18px;border-radius:999px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  background:rgba(30,3,6,.75);border:1px solid var(--line);font-size:14px;font-weight:600;color:var(--cream);
+}
+.countdown{
+  position:absolute;inset:0;z-index:4;display:grid;place-items:center;pointer-events:none;
+  font:800 clamp(110px,26vw,220px)/1 var(--font-ui);color:var(--flag);text-shadow:0 6px 30px rgba(0,0,0,.85);
+}
+.countdown.pop{animation:pop .45s ease-out}
+@keyframes pop{0%{transform:scale(1.6);opacity:0}30%{opacity:1}100%{transform:scale(1);opacity:1}}
+
+.controls{width:100%;max-width:min(100%,520px);display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px}
+.slots{list-style:none;margin:0;padding:0;display:flex;gap:8px;justify-self:start}
+.slot{
+  width:46px;height:41px;border-radius:6px;border:2px dashed rgba(255,244,214,.4);
+  background:rgba(255,255,255,.06) center/cover no-repeat;transition:border-color .2s;
+}
+.slot.filled{border:2px solid var(--flag)}
+.controls .icon-btn{justify-self:end}
+.shutter{
+  width:86px;height:86px;border-radius:50%;padding:5px;cursor:pointer;
+  background:var(--red);border:4px solid var(--flag);box-shadow:0 0 0 6px rgba(196,22,28,.35);
+  display:grid;place-items:center;transition:transform .08s,opacity .15s;
+}
+.shutter span{display:block;width:100%;height:100%;border-radius:50%;background:var(--flag);transition:transform .1s}
+.shutter:active:not(:disabled) span{transform:scale(.86)}
+.shutter:disabled{opacity:.45;cursor:default}
+
+/* ---------- Overlay ---------- */
+.overlay{
+  position:fixed;inset:0;z-index:60;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:16px;padding:24px;text-align:center;background:rgba(20,2,5,.93);
+  -webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);
+}
+.spinner{
+  width:84px;height:84px;border-radius:50%;border:5px solid rgba(255,210,31,.2);border-top-color:var(--flag);
+  animation:spin 1s linear infinite;margin-bottom:8px;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+.overlay h3{margin:0;font-size:26px;font-weight:800;color:var(--flag)}
+.overlay p{margin:0;font-size:15px;color:rgba(255,244,214,.75);max-width:360px;min-height:1.5em}
+.bar{width:min(320px,80vw);height:8px;border-radius:99px;background:rgba(255,255,255,.12);overflow:hidden}
+.bar i{display:block;height:100%;width:0;background:var(--flag);transition:width .25s}
+
+/* ---------- Result ---------- */
+.result{flex-direction:column;align-items:center;gap:28px;padding:20px 16px 40px}
+.strip-wrap{
+  flex:none;background:#fff;padding:10px;border-radius:6px;
+  box-shadow:0 24px 50px rgba(0,0,0,.55);transform:rotate(-1deg);
+}
+#final-canvas{display:block;height:min(48dvh,460px);width:auto;aspect-ratio:1/3}
+.panel{width:100%;max-width:420px;display:flex;flex-direction:column;gap:16px}
+.qr-card{
+  background:var(--cream);color:var(--lacquer-800);border-radius:20px;padding:20px;
+  box-shadow:0 18px 40px rgba(0,0,0,.4);
+}
+.state-ok,.state-fail{display:flex;flex-direction:column;align-items:center;text-align:center;gap:12px;width:100%}
+.qr-card[data-state="ok"] .state-fail,.qr-card[data-state="fail"] .state-ok{display:none}
+.qr-card h2{margin:0;font-size:20px;font-weight:800;color:var(--red)}
+.qr-card p{margin:0;font-size:14px;line-height:1.6}
+.qr-box{background:#fff;padding:12px;border-radius:12px;border:3px solid var(--red);width:208px}
+#imgbb-qr-container img,#imgbb-qr-container canvas{display:block;width:100%;height:auto}
+.link-row{
+  width:100%;display:flex;align-items:center;gap:8px;padding:6px 6px 6px 12px;
+  background:rgba(122,15,23,.09);border-radius:10px;
+}
+.link-row span{
+  flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left;
+  font:12px ui-monospace,SFMono-Regular,Menlo,monospace;-webkit-user-select:text;user-select:text;
+}
+.link-row button{
+  min-height:36px;padding:0 14px;border-radius:8px;background:var(--red);color:#fff;font-weight:700;font-size:13px;flex:none;
+}
+.retry-btn{min-height:48px;padding:0 24px;border-radius:12px;background:var(--red);color:#fff;font-weight:700;font-size:16px}
+.actions{display:flex;flex-direction:column;gap:10px}
+
+@media (min-width:900px){
+  .result{flex-direction:row;justify-content:center;gap:64px;padding:20px 32px}
+  #final-canvas{height:min(calc(100dvh - 170px),860px)}
+}
+
+/* ---------- Flash & toast ---------- */
+.flash{position:fixed;inset:0;z-index:70;background:#fff;opacity:0;pointer-events:none;transition:opacity .18s}
+.toast{
+  position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom));z-index:80;
+  max-width:min(92vw,520px);padding:12px 22px;border-radius:999px;
+  background:rgba(20,2,5,.95);color:var(--flag);border:1px solid var(--line);
+  font-size:14px;font-weight:600;text-align:center;box-shadow:0 12px 30px rgba(0,0,0,.5);
+  transform:translate(-50%,140px);opacity:0;transition:transform .3s,opacity .3s;pointer-events:none;
+}
+.toast.show{transform:translate(-50%,0);opacity:1}
+
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
+}
+</style>
 </head>
 <body>
 
-    <div id="view-selection">
-        <button onclick="startAquarium()">เปิดหน้าจอ ตู้ปลา (TV)</button>
-        <button onclick="startScanner()">เปิดหน้าจอ สแกนปลา (มือถือ)</button>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-cam" viewBox="0 0 24 24"><path d="M4 8a2 2 0 0 1 2-2h1.5l1.2-1.6A1 1 0 0 1 9.5 4h5a1 1 0 0 1 .8.4L16.5 6H18a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8Z"/><circle cx="12" cy="12.5" r="3.5"/></symbol>
+  <symbol id="i-flip" viewBox="0 0 24 24"><path d="M20 11a8 8 0 0 0-14.3-4.6M4 13a8 8 0 0 0 14.3 4.6M5 3v4h4M19 21v-4h-4"/></symbol>
+  <symbol id="i-back" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></symbol>
+  <symbol id="i-down" viewBox="0 0 24 24"><path d="M12 4v11M7 11l5 5 5-5M5 20h14"/></symbol>
+  <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></symbol>
+  <symbol id="i-redo" viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.5-5.8M4 4v4h4"/></symbol>
+</svg>
+
+<div id="app">
+  <header class="topbar">
+    <div class="brand">
+      <span class="seal" aria-hidden="true">齋</span>
+      <div>
+        <h1>กินเจ ตะกั่วป่า</h1>
+        <p>ตู้ถ่ายรูปที่ระลึก</p>
+      </div>
     </div>
-
-    <div id="aquarium-container">
-        <canvas id="aquariumCanvas"></canvas>
+    <div id="net" class="net" role="status">
+      <span class="dot"></span><span id="net-text">ออนไลน์</span>
     </div>
+  </header>
 
-    <div id="scanner-container">
-        <h2>📷 วางกระดาษระบายสีให้อยู่ในกรอบแล้วกดสแกน</h2>
-        <video id="webcam" autoplay playsinline></video>
-        <br><br>
-        <button onclick="captureAndUpload()">🚀 สแกนและส่งปลาลงตู้</button>
-        <canvas id="canvas-process"></canvas>
-    </div>
+  <main>
+    <!-- หน้าแรก -->
+    <section id="screen-home" class="screen home">
+      <div class="flag-wrap" aria-hidden="true">
+        <div class="flag">
+          <span class="flag-seal">齋</span>
+          <span class="flag-title">กินเจ</span>
+          <span class="flag-sub">ตะกั่วป่า</span>
+        </div>
+      </div>
 
-    <script>
-        // === [ ส่วนที่ 1: ตั้งค่า FIREBASE ของคุณตรงนี้ ] ===
-        const firebaseConfig = {
-            apiKey: "YOUR_API_KEY",
-            authDomain: "YOUR_AUTH_DOMAIN",
-            databaseURL: "YOUR_DATABASE_URL",
-            projectId: "YOUR_PROJECT_ID",
-            storageBucket: "YOUR_STORAGE_BUCKET",
-            messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-            appId: "YOUR_APP_ID"
-        };
-        // เริ่มต้น Firebase (เปิดคอมเมนต์เมื่อใส่รหัสผ่านเรียบร้อย)
-        // firebase.initializeApp(firebaseConfig);
-        // const database = firebase.database();
-        // const storage = firebase.storage();
+      <div class="home-copy">
+        <p class="event">เทศกาลถือศีลกินผัก อำเภอตะกั่วป่า</p>
+        <h2>ถ่ายรูป 3 ท่า<br>สแกนรับรูปเข้ามือถือ</h2>
+        <p class="lead">ทำท่าตามเสียงนับถอยหลัง เราจะรวมเป็นแถบรูปพร้อม QR Code ให้ทันที</p>
 
-        // === [ ส่วนที่ 2: ระบบจัดการโหมดหน้าจอ ] ===
-        function startAquarium() {
-            document.getElementById('view-selection').style.display = 'none';
-            document.getElementById('aquarium-container').style.display = 'block';
-            initAquarium();
+        <fieldset class="themes">
+          <legend>เลือกสีกรอบรูป</legend>
+          <div class="theme-list">
+            <label class="theme">
+              <input type="radio" name="theme" value="classic" checked>
+              <span class="swatch sw-classic"><i></i><i></i><i></i></span>
+              <span class="tname">ขาวแดง</span>
+            </label>
+            <label class="theme">
+              <input type="radio" name="theme" value="flag">
+              <span class="swatch sw-flag"><i></i><i></i><i></i></span>
+              <span class="tname">เหลืองธงเจ</span>
+            </label>
+            <label class="theme">
+              <input type="radio" name="theme" value="lacquer">
+              <span class="swatch sw-lacquer"><i></i><i></i><i></i></span>
+              <span class="tname">แดงทอง</span>
+            </label>
+          </div>
+        </fieldset>
+
+        <button id="btn-start" class="btn btn-primary" type="button">
+          <svg class="ico" aria-hidden="true"><use href="#i-cam"/></svg>
+          เริ่มถ่ายรูป
+        </button>
+      </div>
+    </section>
+
+    <!-- กล้อง -->
+    <section id="screen-cam" class="screen cam" hidden>
+      <div class="cam-stage">
+        <div id="viewfinder" class="viewfinder">
+          <video id="video-feed" autoplay playsinline muted></video>
+          <div class="corners" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+          <button id="btn-back" class="icon-btn back" type="button" aria-label="กลับหน้าแรก">
+            <svg class="ico" aria-hidden="true"><use href="#i-back"/></svg>
+          </button>
+          <div id="countdown" class="countdown" aria-hidden="true" hidden></div>
+          <p id="shot-status" class="status-pill" role="status" aria-live="polite">กดปุ่มกลมเพื่อเริ่มถ่าย 3 ท่า</p>
+        </div>
+
+        <div class="controls">
+          <ol class="slots" aria-label="รูปที่ถ่ายแล้ว">
+            <li class="slot"></li><li class="slot"></li><li class="slot"></li>
+          </ol>
+          <button id="shutter-btn" class="shutter" type="button" aria-label="เริ่มถ่ายรูป"><span></span></button>
+          <button id="btn-switch" class="icon-btn" type="button" aria-label="สลับกล้องหน้าหลัง">
+            <svg class="ico" aria-hidden="true"><use href="#i-flip"/></svg>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ผลลัพธ์ -->
+    <section id="screen-result" class="screen result" hidden>
+      <div class="strip-wrap">
+        <canvas id="final-canvas" width="1200" height="3600" role="img" aria-label="แถบรูปถ่าย 3 ท่าที่ถ่ายเสร็จแล้ว"></canvas>
+      </div>
+
+      <div class="panel">
+        <div id="qr-card" class="qr-card" data-state="ok">
+          <div class="state-ok">
+            <h2>สแกนรับรูปเข้ามือถือ</h2>
+            <div class="qr-box"><div id="imgbb-qr-container"></div></div>
+            <div class="link-row">
+              <span id="imgbb-url-text"></span>
+              <button id="btn-copy" type="button">คัดลอก</button>
+            </div>
+          </div>
+          <div class="state-fail">
+            <h2>อัปโหลดรูปไม่สำเร็จ</h2>
+            <p id="fail-reason">เชื่อมต่ออินเทอร์เน็ตไม่ได้</p>
+            <button id="btn-retry" class="retry-btn" type="button">ลองอัปโหลดอีกครั้ง</button>
+            <p>ดาวน์โหลดรูปลงเครื่องได้ตามปกติ แต่จะยังไม่มี QR Code บนรูป</p>
+          </div>
+        </div>
+
+        <div class="actions">
+          <button id="btn-download" class="btn btn-action btn-red" type="button">
+            <svg class="ico" aria-hidden="true"><use href="#i-down"/></svg>ดาวน์โหลดรูป
+          </button>
+          <button id="btn-open" class="btn btn-action btn-outline" type="button">
+            <svg class="ico" aria-hidden="true"><use href="#i-link"/></svg>เปิดรูปบนเว็บ
+          </button>
+          <button id="btn-restart" class="btn btn-action btn-ghost" type="button">
+            <svg class="ico" aria-hidden="true"><use href="#i-redo"/></svg>ถ่ายใหม่
+          </button>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<!-- กำลังประมวลผล / อัปโหลด -->
+<div id="upload-overlay" class="overlay" role="alertdialog" aria-live="assertive" aria-labelledby="overlay-title" hidden>
+  <div class="spinner" aria-hidden="true"></div>
+  <h3 id="overlay-title">กำลังรวมรูป</h3>
+  <p id="upload-status-detail"></p>
+  <div class="bar" aria-hidden="true"><i id="upload-bar"></i></div>
+</div>
+
+<div id="flash-effect" class="flash" aria-hidden="true"></div>
+<div id="toast" class="toast" role="status" aria-live="polite"><span id="toast-message"></span></div>
+
+<script>
+(() => {
+'use strict';
+
+/* =====================================================================
+   ตั้งค่า
+   หมายเหตุ: API key ฝั่งเบราว์เซอร์ใครเปิด View Source ก็เห็น
+   ถ้าจะใช้งานจริงแนะนำให้ย้ายไปไว้หลัง proxy เล็ก ๆ (เช่น Cloudflare Worker)
+   ===================================================================== */
+const CONFIG = {
+  imgbbApiKey: 'ffc90ad0bc5c7e0c056b68ef7430304a',
+  totalShots: 3,
+  countdownSec: 3,
+  canvasWidth: 1200,
+  canvasHeight: 3600,
+  photoW: 1040,
+  photoH: 920,
+  jpegQuality: 0.92,
+  uploadTimeoutMs: 45000,
+  uploadRetries: 2,
+  fontCustom: 'JS Chanok',
+  fontUI: 'Prompt',
+  title: 'กินผัก @ takuapa',
+  tagline: 'saphasena',
+  eventName: 'เทศกาลกินเจ ตะกั่วป่า'
+};
+
+/* ธีมกรอบรูปแถบ */
+const THEMES = {
+  classic: { bg:'#ffffff', band:'#d32f2f', ink:'#d32f2f', flag:'#fadb14', flagInk:'#d32f2f', mat:'#ffffff', stroke:'#d32f2f', divider:'#ffd666' },
+  flag:    { bg:'#fadb14', band:'#c4161c', ink:'#c4161c', flag:'#c4161c', flagInk:'#fadb14', mat:'#ffffff', stroke:'#c4161c', divider:'#c4161c' },
+  lacquer: { bg:'#a50f18', band:'#ffd21f', ink:'#ffd21f', flag:'#ffd21f', flagInk:'#a50f18', mat:'#fff4d6', stroke:'#ffd21f', divider:'rgba(255,210,31,.55)' }
+};
+
+const $ = id => document.getElementById(id);
+const D = {
+  screens: { home:$('screen-home'), cam:$('screen-cam'), result:$('screen-result') },
+  startBtn:$('btn-start'), backBtn:$('btn-back'), switchBtn:$('btn-switch'),
+  video:$('video-feed'), countdown:$('countdown'), flash:$('flash-effect'),
+  shutter:$('shutter-btn'), status:$('shot-status'),
+  slots:[...document.querySelectorAll('.slot')],
+  canvas:$('final-canvas'),
+  overlay:$('upload-overlay'), ovTitle:$('overlay-title'), ovDetail:$('upload-status-detail'), ovBar:$('upload-bar'),
+  qrCard:$('qr-card'), qr:$('imgbb-qr-container'), urlText:$('imgbb-url-text'), failReason:$('fail-reason'),
+  toast:$('toast'), toastMsg:$('toast-message'),
+  net:$('net'), netText:$('net-text')
+};
+
+const state = {
+  stream:null, facingMode:'user', photos:[], isShooting:false,
+  uploadedUrl:'', viewerUrl:'', uploadBlob:null,
+  theme:'classic', takenAt:null, wakeLock:null, screen:'home'
+};
+
+const delay = ms => new Promise(r => setTimeout(r, ms));
+
+/* ---------- เสียง (Web Audio ล้วน ไม่ต้องโหลดไลบรารี) ---------- */
+const Sound = (() => {
+  let ctx = null;
+  const ensure = () => {
+    try {
+      if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
+      if (ctx.state === 'suspended') ctx.resume();
+    } catch (e) { ctx = null; }
+    return ctx;
+  };
+  function tone(freq, dur = 0.09, vol = 0.18, type = 'sine') {
+    const c = ensure(); if (!c) return;
+    const t = c.currentTime, o = c.createOscillator(), g = c.createGain();
+    o.type = type; o.frequency.value = freq;
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(vol, t + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g); g.connect(c.destination);
+    o.start(t); o.stop(t + dur + 0.02);
+  }
+  function shutter() {
+    const c = ensure(); if (!c) return;
+    const len = Math.floor(c.sampleRate * 0.18);
+    const buf = c.createBuffer(1, len, c.sampleRate), d = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3);
+    const src = c.createBufferSource(); src.buffer = buf;
+    const f = c.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 2800; f.Q.value = 0.8;
+    const g = c.createGain(); g.gain.value = 0.6;
+    src.connect(f); f.connect(g); g.connect(c.destination);
+    src.start();
+    tone(180, 0.06, 0.2, 'square');
+  }
+  return {
+    unlock: ensure,
+    beep: () => tone(1000),
+    shutter,
+    done: () => { tone(880, 0.1); setTimeout(() => tone(1320, 0.18), 110); }
+  };
+})();
+
+/* ---------- UI helpers ---------- */
+let toastTimer;
+function showToast(msg) {
+  D.toastMsg.textContent = msg;
+  D.toast.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => D.toast.classList.remove('show'), 3500);
+}
+
+function switchScreen(name) {
+  state.screen = name;
+  Object.entries(D.screens).forEach(([k, el]) => { el.hidden = k !== name; });
+  if (name === 'result') D.screens.result.scrollTop = 0;
+}
+
+function updateNet() {
+  const on = navigator.onLine;
+  D.net.classList.toggle('offline', !on);
+  D.netText.textContent = on ? 'ออนไลน์' : 'ออฟไลน์';
+}
+
+function setStatus(text) { D.status.textContent = text; }
+
+function showOverlay(title, detail, pct = 0) {
+  D.ovTitle.textContent = title;
+  setOverlay(detail, pct);
+  D.overlay.hidden = false;
+}
+function setOverlay(detail, pct) {
+  D.ovDetail.textContent = detail;
+  if (typeof pct === 'number') D.ovBar.style.width = pct + '%';
+}
+function hideOverlay() { D.overlay.hidden = true; }
+
+/* ---------- กล้อง ---------- */
+function stopStream() {
+  if (state.stream) state.stream.getTracks().forEach(t => t.stop());
+  state.stream = null;
+  D.video.srcObject = null;
+}
+
+async function keepAwake() {
+  try {
+    if ('wakeLock' in navigator && !state.wakeLock) {
+      state.wakeLock = await navigator.wakeLock.request('screen');
+      state.wakeLock.addEventListener('release', () => { state.wakeLock = null; });
+    }
+  } catch (e) { /* ไม่รองรับก็ข้าม */ }
+}
+function releaseAwake() {
+  try { if (state.wakeLock) state.wakeLock.release(); } catch (e) {}
+  state.wakeLock = null;
+}
+
+async function updateSwitchVisibility() {
+  try {
+    const devs = await navigator.mediaDevices.enumerateDevices();
+    const n = devs.filter(d => d.kind === 'videoinput').length;
+    D.switchBtn.style.visibility = n < 2 ? 'hidden' : 'visible';
+  } catch (e) {}
+}
+
+async function initCamera() {
+  stopStream();
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    showToast('เบราว์เซอร์นี้เปิดกล้องไม่ได้ ต้องเปิดผ่านลิงก์ https');
+    return false;
+  }
+  try {
+    state.stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: state.facingMode, width: { ideal: 1920 }, height: { ideal: 1080 } },
+      audio: false
+    });
+  } catch (err) {
+    console.error('Camera error:', err);
+    const msgs = {
+      NotAllowedError: 'ยังไม่ได้อนุญาตให้ใช้กล้อง กดอนุญาตในเบราว์เซอร์แล้วลองใหม่',
+      NotFoundError: 'ไม่พบกล้องในอุปกรณ์นี้',
+      NotReadableError: 'กล้องกำลังถูกใช้โดยแอปอื่น ปิดแอปนั้นแล้วลองใหม่'
+    };
+    showToast(msgs[err.name] || 'เปิดกล้องไม่สำเร็จ ลองใหม่อีกครั้ง');
+    return false;
+  }
+  D.video.srcObject = state.stream;
+  D.video.classList.toggle('mirror', state.facingMode === 'user');
+  try { await D.video.play(); } catch (e) {}
+  updateSwitchVisibility();
+  return true;
+}
+
+async function toggleCamera() {
+  if (state.isShooting) return;
+  state.facingMode = state.facingMode === 'user' ? 'environment' : 'user';
+  const ok = await initCamera();
+  if (!ok) state.facingMode = state.facingMode === 'user' ? 'environment' : 'user';
+}
+
+function resetShotUI() {
+  D.slots.forEach(s => { s.style.backgroundImage = ''; s.classList.remove('filled'); });
+  setStatus('กดปุ่มกลมเพื่อเริ่มถ่าย 3 ท่า');
+  D.shutter.disabled = false;
+}
+
+function setShooting(on) {
+  state.isShooting = on;
+  D.shutter.disabled = on;
+  D.switchBtn.disabled = on;
+  D.backBtn.style.visibility = on ? 'hidden' : 'visible';
+}
+
+async function startCamera() {
+  Sound.unlock();
+  if (!navigator.onLine) showToast('ตอนนี้ออฟไลน์ ถ่ายรูปได้ แต่จะยังไม่มี QR Code');
+  D.startBtn.disabled = true;
+  const ok = await initCamera();
+  D.startBtn.disabled = false;
+  if (!ok) return;
+  resetShotUI();
+  switchScreen('cam');
+  keepAwake();
+}
+
+function goHome() {
+  if (state.isShooting) return;
+  stopStream();
+  releaseAwake();
+  switchScreen('home');
+}
+
+/* ---------- ถ่ายภาพ ---------- */
+function drawImageCover(ctx, img, x, y, w, h) {
+  const iw = img.videoWidth || img.width, ih = img.videoHeight || img.height;
+  const target = w / h;
+  let sw, sh, sx = 0, sy = 0;
+  if (iw / ih > target) { sh = ih; sw = ih * target; sx = (iw - sw) / 2; }
+  else { sw = iw; sh = iw / target; sy = (ih - sh) / 2; }
+  ctx.drawImage(img, sx, sy, sw, sh, x, y, w, h);
+}
+
+/* ครอปให้สัดส่วนเท่ากรอบในแถบรูปเลย ภาพที่เห็นในกล้องจึงตรงกับภาพที่ได้ */
+function captureFrame() {
+  const c = document.createElement('canvas');
+  c.width = CONFIG.photoW; c.height = CONFIG.photoH;
+  const ctx = c.getContext('2d');
+  ctx.save();
+  if (state.facingMode === 'user') { ctx.translate(c.width, 0); ctx.scale(-1, 1); }
+  drawImageCover(ctx, D.video, 0, 0, c.width, c.height);
+  ctx.restore();
+  return c;
+}
+
+function fillSlot(i, photo) {
+  const t = document.createElement('canvas');
+  t.width = 160; t.height = 142;
+  t.getContext('2d').drawImage(photo, 0, 0, t.width, t.height);
+  D.slots[i].style.backgroundImage = `url(${t.toDataURL('image/jpeg', 0.7)})`;
+  D.slots[i].classList.add('filled');
+}
+
+function triggerFlash() {
+  D.flash.style.opacity = '1';
+  setTimeout(() => { D.flash.style.opacity = '0'; }, 150);
+}
+
+async function runCountdown() {
+  D.countdown.hidden = false;
+  for (let n = CONFIG.countdownSec; n > 0; n--) {
+    D.countdown.textContent = n;
+    D.countdown.classList.remove('pop');
+    void D.countdown.offsetWidth;          // รีสตาร์ทแอนิเมชัน
+    D.countdown.classList.add('pop');
+    Sound.beep();
+    await delay(1000);
+  }
+  D.countdown.hidden = true;
+}
+
+async function startSequence() {
+  if (state.isShooting) return;
+  if (!state.stream || !D.video.videoWidth) { showToast('กล้องยังไม่พร้อม รอสักครู่แล้วกดใหม่'); return; }
+  Sound.unlock();
+  setShooting(true);
+  state.photos = [];
+  resetShotUI();
+  D.shutter.disabled = true;
+
+  try {
+    for (let i = 0; i < CONFIG.totalShots; i++) {
+      setStatus(`ท่าที่ ${i + 1} จาก ${CONFIG.totalShots} เตรียมยิ้ม`);
+      await runCountdown();
+      triggerFlash();
+      Sound.shutter();
+      const shot = captureFrame();
+      state.photos.push(shot);
+      fillSlot(i, shot);
+      if (i < CONFIG.totalShots - 1) {
+        setStatus('เปลี่ยนท่าได้เลย');
+        await delay(1000);
+      }
+    }
+    state.takenAt = new Date();
+    setStatus('ถ่ายครบแล้ว กำลังรวมรูป');
+    await delay(400);
+    await processAndUpload();
+  } catch (err) {
+    console.error(err);
+    D.countdown.hidden = true;
+    hideOverlay();
+    showToast('เกิดข้อผิดพลาด กรุณาถ่ายใหม่อีกครั้ง');
+    resetShotUI();
+  } finally {
+    setShooting(false);
+  }
+}
+
+/* ---------- วาดแถบรูป ---------- */
+async function ensureFonts() {
+  try {
+    await Promise.all([
+      document.fonts.load(`160px "${CONFIG.fontCustom}"`, CONFIG.title + CONFIG.tagline),
+      document.fonts.load(`700 48px ${CONFIG.fontUI}`, 'เจ'),
+      document.fonts.load(`600 38px ${CONFIG.fontUI}`, CONFIG.eventName)
+    ]);
+  } catch (e) {}
+}
+
+function fitFont(ctx, text, maxW, size, fontFn) {
+  let s = size;
+  while (s > 40) {
+    ctx.font = fontFn(s);
+    if (ctx.measureText(text).width <= maxW) break;
+    s -= 4;
+  }
+  ctx.font = fontFn(s);
+}
+
+function renderStrip(qrUrl) {
+  const ctx = D.canvas.getContext('2d');
+  const W = CONFIG.canvasWidth, H = CONFIG.canvasHeight;
+  const T = THEMES[state.theme] || THEMES.classic;
+  const custom = s => `${s}px "${CONFIG.fontCustom}","${CONFIG.fontUI}",sans-serif`;
+
+  ctx.save();
+  ctx.fillStyle = T.bg; ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = T.band; ctx.fillRect(0, 0, W, 32);
+
+  // ธงเจ (ปลายแฉก)
+  ctx.beginPath();
+  ctx.moveTo(80, 32); ctx.lineTo(200, 32); ctx.lineTo(200, 165); ctx.lineTo(140, 132); ctx.lineTo(80, 165);
+  ctx.closePath();
+  ctx.fillStyle = T.flag; ctx.fill();
+  ctx.fillStyle = T.flagInk;
+  ctx.font = `700 52px ${CONFIG.fontUI},sans-serif`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText('เจ', 140, 88);
+
+  // ชื่อหลัก
+  ctx.fillStyle = T.ink;
+  fitFont(ctx, CONFIG.title, 890, 160, custom);
+  ctx.fillText(CONFIG.title, 675, 190);
+
+  // รูป 3 ท่า
+  const { photoW, photoH } = CONFIG;
+  const padX = 80, startY = 320, gap = 60, mat = 14;
+  state.photos.forEach((photo, i) => {
+    const y = startY + i * (photoH + gap);
+    ctx.save();
+    ctx.shadowColor = 'rgba(0,0,0,.28)'; ctx.shadowBlur = 24; ctx.shadowOffsetY = 10;
+    ctx.fillStyle = T.mat;
+    ctx.fillRect(padX - mat, y - mat, photoW + mat * 2, photoH + mat * 2);
+    ctx.restore();
+    ctx.drawImage(photo, padX, y, photoW, photoH);
+    ctx.strokeStyle = T.stroke; ctx.lineWidth = 8;
+    ctx.strokeRect(padX - mat, y - mat, photoW + mat * 2, photoH + mat * 2);
+  });
+
+  // ส่วนท้าย
+  ctx.strokeStyle = T.divider; ctx.lineWidth = 4;
+  ctx.beginPath(); ctx.moveTo(80, 3270); ctx.lineTo(W - 80, 3270); ctx.stroke();
+
+  ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillStyle = T.ink;
+  fitFont(ctx, CONFIG.tagline, 700, 100, custom);
+  ctx.fillText(CONFIG.tagline, 80, 3385);
+  ctx.font = `600 38px ${CONFIG.fontUI},sans-serif`;
+  ctx.fillText(CONFIG.eventName, 80, 3465);
+  if (state.takenAt) {
+    const when = state.takenAt.toLocaleString('th-TH', { day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' });
+    ctx.globalAlpha = 0.85;
+    ctx.font = `400 32px ${CONFIG.fontUI},sans-serif`;
+    ctx.fillText(`${when} น.`, 80, 3517);
+    ctx.globalAlpha = 1;
+  }
+
+  // QR Code
+  if (qrUrl) {
+    const qc = D.qr.querySelector('canvas');
+    if (qc) {
+      const size = 230, pad = 14;
+      const bx = W - 80 - (size + pad * 2), by = 3306;
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(bx, by, size + pad * 2, size + pad * 2);
+      ctx.drawImage(qc, bx + pad, by + pad, size, size);
+      ctx.strokeStyle = T.stroke; ctx.lineWidth = 6;
+      ctx.strokeRect(bx, by, size + pad * 2, size + pad * 2);
+    }
+  }
+  ctx.restore();
+}
+
+/* ---------- QR + อัปโหลด ---------- */
+function buildQR(url) {
+  D.qr.innerHTML = '';
+  if (typeof QRCode === 'undefined') return false;
+  new QRCode(D.qr, {
+    text: url, width: 360, height: 360,
+    colorDark: '#8b0d14', colorLight: '#ffffff',
+    correctLevel: QRCode.CorrectLevel.M
+  });
+  return true;
+}
+
+function canvasToBlob(canvas, type, quality) {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob(b => b ? resolve(b) : reject(new Error('toBlob failed')), type, quality);
+  });
+}
+
+function uploadToImgBB(blob, onProgress) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', 'https://api.imgbb.com/1/upload');
+    xhr.timeout = CONFIG.uploadTimeoutMs;
+    xhr.upload.onprogress = e => { if (e.lengthComputable) onProgress(Math.round(e.loaded / e.total * 100)); };
+    xhr.onload = () => {
+      try {
+        const json = JSON.parse(xhr.responseText);
+        if (xhr.status >= 200 && xhr.status < 300 && json.success) resolve(json.data);
+        else reject(new Error((json.error && json.error.message) || `HTTP ${xhr.status}`));
+      } catch (e) { reject(new Error('bad response')); }
+    };
+    xhr.onerror = () => reject(new Error('network'));
+    xhr.ontimeout = () => reject(new Error('timeout'));
+    const fd = new FormData();
+    fd.append('key', CONFIG.imgbbApiKey);
+    fd.append('name', `kinjay-${Date.now().toString(36)}`);
+    fd.append('image', blob, 'photostrip.jpg');
+    xhr.send(fd);
+  });
+}
+
+function explainError(err) {
+  if (!navigator.onLine || (err && err.message === 'network')) return 'เชื่อมต่ออินเทอร์เน็ตไม่ได้ ตรวจสอบสัญญาณแล้วลองใหม่';
+  if (err && err.message === 'timeout') return 'อินเทอร์เน็ตช้าเกินไป ลองอัปโหลดอีกครั้ง';
+  return 'เซิร์ฟเวอร์รับรูปไม่สำเร็จ ลองอัปโหลดอีกครั้ง';
+}
+
+async function doUpload() {
+  showOverlay('กำลังอัปโหลดรูป', 'กำลังเชื่อมต่อ...', 0);
+  let ok = false;
+  try {
+    let data, lastErr;
+    for (let attempt = 0; attempt <= CONFIG.uploadRetries; attempt++) {
+      try {
+        data = await uploadToImgBB(state.uploadBlob, pct => setOverlay(`กำลังส่งรูป ${pct}%`, pct));
+        break;
+      } catch (err) {
+        lastErr = err;
+        console.warn('Upload attempt failed:', err);
+        if (attempt < CONFIG.uploadRetries) {
+          setOverlay(`สัญญาณไม่เสถียร กำลังลองใหม่ (${attempt + 2}/${CONFIG.uploadRetries + 1})`, 0);
+          await delay(1500);
         }
+      }
+    }
+    if (!data) throw lastErr;
 
-        function startScanner() {
-            document.getElementById('view-selection').style.display = 'none';
-            document.getElementById('scanner-container').style.display = 'block';
-            initScanner();
-        }
+    state.uploadedUrl = data.url;
+    state.viewerUrl = data.url_viewer || data.url;
+    setOverlay('กำลังสร้าง QR Code...', 100);
+    buildQR(state.uploadedUrl);
+    D.urlText.textContent = state.uploadedUrl;
+    renderStrip(state.uploadedUrl);      // ประทับ QR ลงบนแถบรูปที่ให้ดาวน์โหลด
+    D.qrCard.dataset.state = 'ok';
+    ok = true;
+  } catch (err) {
+    console.error('Upload failed:', err);
+    state.uploadedUrl = '';
+    D.qr.innerHTML = '';
+    D.urlText.textContent = '';
+    renderStrip(null);
+    D.failReason.textContent = explainError(err);
+    D.qrCard.dataset.state = 'fail';
+  } finally {
+    hideOverlay();
+  }
+  return ok;
+}
 
-        // === [ ส่วนที่ 3: ระบบตู้ปลา (AQUARIUM LOGIC) ] ===
-        let canvas, ctx, fishes = [];
-        const bgImage = new Image();
-        bgImage.src = 'https://images.unsplash.com/photo-1544551763-46a013bb70d5?q=80&w=1920'; // <-- เปลี่ยนเป็น URL รูปพื้นหลังของคุณได้ที่นี่
+function celebrate() {
+  Sound.done();
+  showToast('อัปโหลดสำเร็จ สแกน QR ได้เลย');
+  if (typeof confetti === 'function' && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    confetti({ particleCount: 110, spread: 75, origin: { y: 0.6 }, colors: ['#ffd21f', '#c4161c', '#ffffff'] });
+  }
+}
 
-        function initAquarium() {
-            canvas = document.getElementById('aquariumCanvas');
-            ctx = canvas.getContext('2d');
-            resizeCanvas();
-            window.addEventListener('resize', resizeCanvas);
+async function processAndUpload() {
+  showOverlay('กำลังรวมรูป', 'จัดหน้าแถบรูปของคุณ...', 0);
+  await ensureFonts();
+  renderStrip(null);
+  state.uploadBlob = await canvasToBlob(D.canvas, 'image/jpeg', CONFIG.jpegQuality);
+  const ok = await doUpload();
+  stopStream();
+  switchScreen('result');
+  if (ok) celebrate();
+}
 
-            // ดักฟังข้อมูลจาก Firebase เมื่อมีคนส่งปลามาใหม่
-            // database.ref('fishes').on('child_added', (snapshot) => {
-            //     const fishData = snapshot.val();
-            //     addFishToAquarium(fishData.url);
-            // });
+/* ---------- ปุ่มต่าง ๆ ในหน้าผลลัพธ์ ---------- */
+async function downloadCanvas() {
+  try {
+    const blob = await canvasToBlob(D.canvas, 'image/jpeg', 0.95);
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `kinjay-photostrip-${Date.now()}.jpg`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+    showToast('บันทึกรูปลงเครื่องแล้ว');
+  } catch (e) {
+    showToast('ดาวน์โหลดอัตโนมัติไม่ได้ ให้กดค้างที่รูปเพื่อบันทึก');
+  }
+}
 
-            // (จำลอง) ปล่อยปลาตัวอย่างระบบ
-            addFishToAquarium('https://i.imgur.com/v8tX8Yp.png'); 
+async function copyUrl() {
+  if (!state.uploadedUrl) return;
+  try {
+    await navigator.clipboard.writeText(state.uploadedUrl);
+    showToast('คัดลอกลิงก์แล้ว');
+  } catch (e) {
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = state.uploadedUrl; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select();
+      document.execCommand('copy'); ta.remove();
+      showToast('คัดลอกลิงก์แล้ว');
+    } catch (e2) { showToast('คัดลอกไม่ได้ ลองกดค้างที่ลิงก์'); }
+  }
+}
 
-            animate();
-        }
+function openLink() {
+  if (state.uploadedUrl) window.open(state.uploadedUrl, '_blank', 'noopener');
+  else showToast('ยังไม่มีลิงก์รูป กด "ลองอัปโหลดอีกครั้ง"');
+}
 
-        function resizeCanvas() {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-        }
+async function retryUpload() {
+  const ok = await doUpload();
+  if (ok) celebrate();
+}
 
-        function addFishToAquarium(imgUrl) {
-            const fishImg = new Image();
-            fishImg.crossOrigin = "anonymous";
-            fishImg.src = imgUrl;
-            fishImg.onload = () => {
-                fishes.push({
-                    img: fishImg,
-                    x: Math.random() * canvas.width,
-                    y: Math.random() * (canvas.height - 200) + 100,
-                    speedX: (Math.random() * 2 + 1) * (Math.random() > 0.5 ? 1 : -1),
-                    speedY: (Math.random() * 0.5 - 0.25),
-                    width: 150,
-                    height: 100
-                });
-            };
-        }
+async function restartApp() {
+  state.photos = [];
+  state.uploadedUrl = '';
+  state.uploadBlob = null;
+  D.qrCard.dataset.state = 'ok';
+  const ok = await initCamera();
+  if (!ok) { switchScreen('home'); return; }
+  resetShotUI();
+  switchScreen('cam');
+  keepAwake();
+}
 
-        function animate() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            
-            // วาดรูปพื้นหลังอควาเรียมของคุณ
-            ctx.drawImage(bgImage, 0, 0, canvas.width, canvas.height);
+/* ---------- ผูกเหตุการณ์ ---------- */
+D.startBtn.addEventListener('click', startCamera);
+D.backBtn.addEventListener('click', goHome);
+D.switchBtn.addEventListener('click', toggleCamera);
+D.shutter.addEventListener('click', startSequence);
+$('btn-copy').addEventListener('click', copyUrl);
+$('btn-retry').addEventListener('click', retryUpload);
+$('btn-download').addEventListener('click', downloadCanvas);
+$('btn-open').addEventListener('click', openLink);
+$('btn-restart').addEventListener('click', restartApp);
 
-            // คำนวณและวาดปลาแต่ละตัว
-            fishes.forEach(fish => {
-                fish.x += fish.speedX;
-                fish.y += fish.speedY;
+document.querySelectorAll('input[name="theme"]').forEach(r => {
+  r.addEventListener('change', () => { if (r.checked) state.theme = r.value; });
+});
 
-                // ชนขอบซ้าย-ขวาให้กลับตัว
-                if (fish.x < -fish.width || fish.x > canvas.width + fish.width) {
-                    fish.speedX *= -1;
-                }
-                // ชนขอบบน-ล่าง
-                if (fish.y < 50 || fish.y > canvas.height - 150) {
-                    fish.speedY *= -1;
-                }
+// เว้นวรรคหรือ Enter = ถ่ายรูป (เผื่อใช้คีย์บอร์ดหรือรีโมต)
+document.addEventListener('keydown', e => {
+  if (state.screen !== 'cam' || state.isShooting) return;
+  if (e.target.closest && e.target.closest('button')) return;
+  if (e.code === 'Space' || e.code === 'Enter') { e.preventDefault(); startSequence(); }
+});
 
-                ctx.save();
-                // กลับด้านรูปปลาตามทิศทางที่ว่าย
-                if (fish.speedX < 0) {
-                    ctx.translate(fish.x + fish.width, fish.y);
-                    ctx.scale(-1, 1);
-                    ctx.drawImage(fish.img, 0, 0, fish.width, fish.height);
-                } else {
-                    ctx.drawImage(fish.img, fish.x, fish.y, fish.width, fish.height);
-                }
-                ctx.restore();
-            });
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && state.screen !== 'home') keepAwake();
+});
 
-            requestAnimationFrame(animate);
-        }
-
-        // === [ ส่วนที่ 4: ระบบสแกนและตัดสีพื้นหลัง (SCANNER & LOGIC) ] ===
-        let video;
-        function initScanner() {
-            video = document.getElementById('webcam');
-            navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false })
-                .then(stream => { video.srcObject = stream; })
-                .catch(err => { alert("ไม่สามารถเปิดกล้องได้: " + err); });
-        }
-
-        function captureAndUpload() {
-            const processCanvas = document.getElementById('canvas-process');
-            const pCtx = processCanvas.getContext('2d');
-            
-            // ตั้งขนาดการดึงรูปปลา (ดึงเฉพาะช่วงกลางหน้าจอที่จัดวางกระดาษ)
-            processCanvas.width = 400;
-            processCanvas.height = 300;
-            
-            // ถ่ายภาพจากวิดีโอลงคอมพิวเตอร์
-            pCtx.drawImage(video, 80, 90, 480, 360, 0, 0, 400, 300);
-
-            // อัลกอริทึมลบพื้นหลังสีขาว (Chroma Key สีขาว)
-            const imgData = pCtx.getImageData(0, 0, processCanvas.width, processCanvas.height);
-            const data = imgData.data;
-            
-            for (let i = 0; i < data.length; i += 4) {
-                let r = data[i];
-                let g = data[i+1];
-                let b = data[i+2];
-                
-                // ถ้าพิกเซลไหนเข้าใกล้สีขาว (กระดาษ) ให้ทำเป็นโปร่งแสง (Transparent)
-                if (r > 190 && g > 190 && b > 190) { 
-                    data[i+3] = 0; // เปลี่ยนค่า Alpha เป็น 0
-                }
-            }
-            pCtx.putImageData(imgData, 0, 0);
-
-            // แปลงภาพเป็นไฟล์ Base64 หรือ PNG
-            const fishBase64 = processCanvas.toDataURL('image/png');
-
-            // --- ขั้นตอนการอัปโหลดขึ้น Firebase ---
-            // 1. นำข้อมูลไปเซฟลง Firebase Storage
-            // 2. นำดาวน์โหลด URL ที่ได้ ไปบันทึกลง Realtime Database
-            // 3. หน้าจอทีวี (Aquarium) จะได้รับภาพและปล่อยปลาว่ายน้ำทันที
-            
-            alert("สแกนปลาสำเร็จ! (เชื่อมต่อ Firebase เพื่อส่งลงตู้ปลาจริงได้เลย)");
-            
-            // ตัวอย่างจำลองส่งเข้าตู้ปลาภายในหน้าเดียวกันเพื่อทดสอบ
-            if(document.getElementById('aquarium-container').style.display === 'none') {
-                addFishToAquarium(fishBase64);
-            }
-        }
-    </script>
+window.addEventListener('online', updateNet);
+window.addEventListener('offline', updateNet);
+updateNet();
+})();
+</script>
 </body>
 </html>
